@@ -22,3 +22,4 @@ OLIVE = QColor("#808000")  # Olive
 APRICOT = QColor("#ffd8b1")  # Apricot
 NAVY = QColor("#000075")  # Navy
 GREY = QColor("#808080")  # Grey
+WHITE = QColor("#F0EAD6") # White 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import overload
 
 import math 
-from PySide6.QtGui import QPainter, QPen, QColor, QBrush
+from PySide6.QtGui import QPainter, QPen, QColor, QBrush, QPolygonF
 from PySide6.QtCore import Qt, QPointF
 from utils.vectors import Vector
 import utils.colors as Colors 
@@ -38,6 +38,9 @@ class Point(Vector):
         midpoint: Point = connection.get_midpoint()
         secondpoint: Point = midpoint + connection.normal
         return Line(midpoint, secondpoint)
+
+    def angle(self) -> float: 
+        return math.atan2(self.y(), self.x())
     
     def draw(self, painter: QPainter): 
         radius = 3
@@ -63,6 +66,9 @@ class Point(Vector):
     
     def __str__(self) -> str:
         return f'Point({self.x()}, {self.y()})'
+    
+    def __hash__(self):
+        return hash((self.x, self.y))
 
 
 class Line:
@@ -89,6 +95,10 @@ class Line:
         if self.direction.x() == 0: 
             return math.inf 
         return self.direction.x() / self.direction.y()
+    
+    def witihin_bound(self, point: Point): 
+        # This assumes that we know the point already is on the infinite line 
+        return point.x() >= min(self.start.x(), self.end.x()) and point.x() <= max(self.start.x(), self.end.x()) 
     
     def contains(self, point: Point) -> bool: 
         on_line: bool = self.a * point.x() + self.b * point.y() == self.c 
@@ -128,10 +138,10 @@ class Line:
         
         y = line.start.y()
         # self is a vertical line
-        if (abs(self.a) < 1e-9): 
-            return Point(self.c, y)
-        
         if (abs(self.b) < 1e-9): 
+            return Point(self.c / self.a, y)
+        
+        if (abs(self.a) < 1e-9): 
             # lines are parralel 
             return None
         
@@ -151,10 +161,10 @@ class Line:
         
         x = line.start.x()
         # self is a horizontal line
-        if (abs(self.b) < 1e-9): 
-            return Point(x, self.c)
-        
         if (abs(self.a) < 1e-9): 
+            return Point(x, self.c / self.b)
+        
+        if (abs(self.b) < 1e-9): 
             # lines are parralel 
             return None
         
@@ -176,7 +186,6 @@ class Line:
                 intersection = self.intersects_hor(line)
             else: 
                 intersection = self.intersects_ver(line)
-
             if intersection: 
                 points.append(intersection)
         if len(points) >= 2: 
@@ -192,7 +201,7 @@ class Line:
         midpoint.scale(0.5)
         return midpoint
     
-    def draw_arrow_head(self, painter: QPainter, size=5): 
+    def draw_arrow_head(self, painter: QPainter, size=3): 
         arrow_width: Point = self.normal.get_normalized()
         arrow_width.scale(size)
         bend_dir: Point = self.direction.get_normalized()
@@ -210,7 +219,7 @@ class Line:
         painter.drawLine(right.start.x(), right.start.y(), right.end.x(), right.end.y())
 
     def draw(self, painter: QPainter, 
-             thickness: int = 5, 
+             thickness: float = 2, 
              color: QColor = Colors.TEAL, 
              pen_style: Qt.PenStyle = Qt.PenStyle.SolidLine, 
              cap_style: Qt.PenCapStyle = Qt.PenCapStyle.RoundCap,
@@ -228,7 +237,7 @@ class Line:
             self.draw_arrow_head(painter)
 
     def draw_inf(self, painter: QPainter, view_box: Rectangle,
-             thickness: int = 5, 
+             thickness: int = 2, 
              color: QColor = Colors.TEAL, 
              pen_style: Qt.PenStyle = Qt.PenStyle.SolidLine, 
              cap_style: Qt.PenCapStyle = Qt.PenCapStyle.RoundCap
@@ -288,12 +297,12 @@ class HalfPlane:
         self.line: Line = line
         self.normal: Point = normal
 
-    def is_inside(self, point: Point): 
-        delta = self.line.start - point
+    def contains(self, point: Point): 
+        delta = point - self.line.start
         return delta.dot_product(self.normal) >= 0 
     
     def draw(self, painter: QPainter, view_box: Rectangle): 
-        normal_line: Line = Line(self.line.end, self.line.end + self.normal.get_normalized().get_scaled(30))
+        normal_line: Line = Line(self.line.end, self.line.end + self.normal.get_normalized().get_scaled(10))
         normal_line.draw(painter, thickness=2, color=Colors.MAROON, pen_style=Qt.PenStyle.DashLine, arrow_head=True)
         self.line.draw_inf(painter, view_box)
 
@@ -304,5 +313,58 @@ class ComplexPolygon:
             raise ValueError("Polygon shell must have at least 3 points.")
         self.hull: list[Point] = hull
         self.size: int = len(hull)
+        self.edges: list[Line] = []
+
+        for i in range(self.size): 
+            self.edges.append(Line(self.hull[i], self.hull[(i+1) % self.size]))
+
+        self.QPolygon: QPolygonF = QPolygonF([QPointF(point.x(), point.y()) for point in self.hull]) 
+
+    def clip_with_halfplane(self, halfplane: HalfPlane) -> ComplexPolygon: 
+        # A few assumptions I will make:
+        # 1. The polygon is convex
+        # 2. The list of edges (or points) is defined as clockwise in my polygon
+        intersections: list[Point] = []
+        intersections_i: list[int] = []
+        new_hull: list[Point] = []
+
+        # loop trough all edges and see if there is an intersection with the half plane
+        for i, edge in enumerate(self.edges): 
+            intersection: Point = edge.intersects(halfplane.line)
+            if intersection and edge.contains_with_tol(intersection) and not (intersection in intersections):
+                intersections_i.append(i)
+                intersections.append(intersection)
+        
+        # if there are intersections there must be 2 (property of polygon being convex)
+        if len(intersections) == 2: 
+            # split them up in two parts 
+            first_part: list[Point] = self.hull[intersections_i[0] + 1: intersections_i[1] + 1]
+            second_part: list[Point] = self.hull[intersections_i[1] + 1:] + self.hull[:intersections_i[0] + 1]
+            # check which side of the polygon is contained in the polygon
+            if halfplane.contains(second_part[0]): 
+                new_hull =  [intersections[1]] + second_part + [intersections[0]]
+            else: 
+                new_hull = [intersections[0]] + first_part + [intersections[1]]
+        else: # there is no intersection with the polygon 
+            return self 
+        return ComplexPolygon(new_hull)
+    
+    def draw(self, painter: QPainter, color: QColor = Colors.MAROON): 
+        # for the inside
+        brush = QBrush(color)
+        painter.setBrush(brush)
+
+        # for the outline
+        pen = QPen()
+        pen.setWidth(1)
+        pen.setColor(Colors.GREY)
+        pen.setStyle(Qt.PenStyle.SolidLine)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+
+        painter.drawPolygon(self.QPolygon)
+
+    def __str__(self): 
+        return f'{self.hull}'
 
 

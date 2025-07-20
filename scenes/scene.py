@@ -1,10 +1,14 @@
 
 from PySide6.QtGui import QPainter
+from PySide6.QtCore import QTimer
 import random 
+import time
 
 from canvas import Canvas
-from network import Network
-from utils.shapes import Point, Line, HalfPlane
+from utils.network import Network, Vertex, VoronoiDiagram
+from utils.shapes import Point, Line, HalfPlane, ComplexPolygon
+import utils.colors as Colors
+from utils.geometry import half_plane_intersection
 
 
 class BisectorScene(Canvas): 
@@ -40,3 +44,54 @@ class NetworkScene(Canvas):
 
     def render_scene(self, painter: QPainter): 
         self.network.draw(painter)
+
+class ClipPolygonScene(Canvas): 
+
+    def __init__(self, size, draw_axis=True):
+        super().__init__(size, draw_axis)
+    
+    def set_up_scene(self):
+        hull: list[Point] = [
+            Point(10,20), Point(20,40), Point(40,70), Point(70,60), Point(80,30), Point(60,10), Point(40,10)
+        ]
+        self.polygon: ComplexPolygon = ComplexPolygon(hull)
+        self.halfplane: HalfPlane = HalfPlane(Line(Point(10,10), Point(30,20)), Point(10, -20))
+        self.polygon = self.polygon.clip_with_halfplane(self.halfplane)
+
+    def render_scene(self, painter):
+        self.polygon.draw(painter)
+        self.halfplane.draw(painter, self.view_box)
+
+class VoronoiCellScene(Canvas): 
+
+    def __init__(self, size, draw_axis=True):
+        super().__init__(size, draw_axis)
+    
+    def set_up_scene(self):
+        self.middle_point: Point = Point(60,30)
+        self.others: list[Point] = [Point(20,30), Point(40,60), Point(80,50), Point(90,20), Point(40,10)]
+        self.bisectors = [self.middle_point.bi_sector(other) for other in self.others]
+        self.half_planes = [HalfPlane(bisector, self.middle_point - bisector.start) for bisector in self.bisectors]
+        self.voronoi_cell: ComplexPolygon = half_plane_intersection(self.half_planes)
+
+    def render_scene(self, painter):
+        self.voronoi_cell.draw(painter, color=Colors.GREY)
+        self.middle_point.draw(painter)
+        for point in self.others: 
+            point.draw(painter)
+        for half_plane in self.half_planes: 
+            half_plane.draw(painter, self.view_box)
+
+class VoronoiDiagramScene(Canvas): 
+
+    def __init__(self, size, draw_axis=True):
+        super().__init__(size, draw_axis)
+    
+    def set_up_scene(self):
+        self.points: list[Point] = [Point(random.randint(-800, 800), random.randint(-800, 800)) for _ in range(100)]
+        self.voronoi_diagram = VoronoiDiagram(self.points)
+        
+    def render_scene(self, painter):
+        self.voronoi_diagram.draw(painter)
+        
+        

@@ -17,7 +17,7 @@ class Canvas(QWidget):
 
         self.pan_offset: Point = Point(0, 0)
         self.last_mouse_pos: Point | None = None
-        self.zoom: float = 1.0
+        self.zoom: float = 2.5
 
         self.draw_axis: bool = draw_axis
         self.x_axis: Line = Line(Point(-1, 0), Point(1, 0))
