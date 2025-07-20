@@ -16,9 +16,14 @@ class Point(Vector):
     @overload
     def __init__(self, qpoint: QPointF) -> None: ...
 
+    @overload 
+    def __init__(self, vector: Vector) -> None: ...
+
     def __init__(self, *args):
         if (len(args) == 1 and isinstance(args[0], QPointF)): 
             super().__init__([args[0].x(), args[0].y()])
+        elif (len(args) == 1 and isinstance(args[0], Vector)): 
+            super().__init__([args[0].data[0], args[0].data[1]])
         elif (len(args) == 2 and isinstance(args[0], (float, int)) and isinstance(args[1], (float, int))): 
             super().__init__([args[0], args[1]])
         else: 
@@ -27,12 +32,6 @@ class Point(Vector):
     @classmethod
     def from_Q(cls, qpoint: QPointF): 
         return cls(qpoint.x(), qpoint.y())
-
-    def x(self): 
-        return self.data[0] 
-    
-    def y(self): 
-        return self.data[1]
 
     def bi_sector(self, other: Point) -> Line: 
         connection: Line = Line(self, other)
@@ -168,7 +167,7 @@ class Line:
         else: 
             None 
     
-    def clip_by_rect(self, rect: Rectangle) -> Line: 
+    def clip_by_rect(self, rect: Rectangle) -> Line | None: 
         # rect contains up, down, left, right
         points = []
         for i, line in enumerate(rect.sides): 
@@ -180,8 +179,10 @@ class Line:
 
             if intersection: 
                 points.append(intersection)
-
-        return Line(points[0], points[1])
+        if len(points) >= 2: 
+            return Line(points[0], points[1])
+        else: 
+            return None 
 
     def get_normal(self) -> Vector:
         return self.normal 
@@ -190,12 +191,30 @@ class Line:
         midpoint: Point = self.start + self.end
         midpoint.scale(0.5)
         return midpoint
+    
+    def draw_arrow_head(self, painter: QPainter, size=5): 
+        arrow_width: Point = self.normal.get_normalized()
+        arrow_width.scale(size)
+        bend_dir: Point = self.direction.get_normalized()
+        bend_dir.scale(size)
+
+        end_point_left: Point = (self.end + arrow_width)
+        end_point_left.sub(bend_dir)
+        end_point_right: Point = (self.end - arrow_width)
+        end_point_right.sub(bend_dir)
+
+        left = Line(self.end, end_point_left)
+        right = Line(self.end, end_point_right)
+
+        painter.drawLine(left.start.x(), left.start.y(), left.end.x(), left.end.y())
+        painter.drawLine(right.start.x(), right.start.y(), right.end.x(), right.end.y())
 
     def draw(self, painter: QPainter, 
              thickness: int = 5, 
              color: QColor = Colors.TEAL, 
              pen_style: Qt.PenStyle = Qt.PenStyle.SolidLine, 
-             cap_style: Qt.PenCapStyle = Qt.PenCapStyle.RoundCap
+             cap_style: Qt.PenCapStyle = Qt.PenCapStyle.RoundCap,
+             arrow_head: bool = False
         ): 
         pen = QPen()
         pen.setWidth(thickness)
@@ -205,6 +224,8 @@ class Line:
         painter.setPen(pen)
 
         painter.drawLine(self.start.x(), self.start.y(), self.end.x(), self.end.y())
+        if arrow_head: 
+            self.draw_arrow_head(painter)
 
     def draw_inf(self, painter: QPainter, view_box: Rectangle,
              thickness: int = 5, 
@@ -219,8 +240,9 @@ class Line:
         pen.setCapStyle(cap_style)
         painter.setPen(pen)
 
-        inf_line: Line = self.clip_by_rect(view_box)
-        painter.drawLine(inf_line.start.x(), inf_line.start.y(), inf_line.end.x(), inf_line.end.y()) 
+        inf_line: Line| None = self.clip_by_rect(view_box)
+        if inf_line: 
+            painter.drawLine(inf_line.start.x(), inf_line.start.y(), inf_line.end.x(), inf_line.end.y()) 
 
     def __eq__(self, other: Line) -> bool:
         return self.start == other.start and self.end == other.end
@@ -262,13 +284,18 @@ class Rectangle:
 
 class HalfPlane: 
 
-    def __init__(self, line: Line, normal: Vector):
+    def __init__(self, line: Line, normal: Point):
         self.line: Line = line
-        self.normal: Vector = normal
+        self.normal: Point = normal
 
     def is_inside(self, point: Point): 
         delta = self.line.start - point
         return delta.dot_product(self.normal) >= 0 
+    
+    def draw(self, painter: QPainter, view_box: Rectangle): 
+        normal_line: Line = Line(self.line.end, self.line.end + self.normal.get_normalized().get_scaled(30))
+        normal_line.draw(painter, thickness=2, color=Colors.MAROON, pen_style=Qt.PenStyle.DashLine, arrow_head=True)
+        self.line.draw_inf(painter, view_box)
 
 class ComplexPolygon: 
 

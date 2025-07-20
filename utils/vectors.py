@@ -24,6 +24,12 @@ class Vector:
             raise ValueError(f"The index must be > 0 and < {self.length}")
 
         return self.data[index]
+    
+    def x(self): 
+        return self.data[0] 
+    
+    def y(self): 
+        return self.data[1]
 
     def get_data(self) -> list[float]:
         return self.data
@@ -49,9 +55,13 @@ class Vector:
     def scale(self, number: float): 
         for i in range(self.length): 
             self.data[i] *= number 
+    
+    def get_scaled(self, number: float) -> Vector: 
+        scaled: Vector = self.copy()
+        scaled.scale(number)
+        return scaled
 
     def normalize(self):
-        print(self.magnitude())
         self.scale(1 / self.magnitude())
 
     def get_normalized(self) -> Vector: 
