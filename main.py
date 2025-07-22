@@ -3,7 +3,7 @@ from PySide6.QtCore import QSize
 import sys 
 
 from canvas import Canvas
-from scenes.scene import BisectorScene, NetworkScene, ClipPolygonScene, VoronoiCellScene, VoronoiDiagramScene
+from scenes.scene import BisectorScene, NetworkScene, ClipPolygonScene, VoronoiCellScene, VoronoiDiagramScene, VoronoiCellScene2
 
 class MainWindow(QMainWindow): 
 

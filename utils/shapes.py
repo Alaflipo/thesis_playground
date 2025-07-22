@@ -75,6 +75,7 @@ class Line:
     def __init__(self, start: Point, end: Point):
         self.start: Point = start
         self.end: Point = end
+        self.label: int | None = None
 
         # direction
         self.direction: Vector = self.end - self.start
@@ -84,6 +85,18 @@ class Line:
         self.a: float = end.y() - start.y()
         self.b: float = start.x() - end.x()
         self.c: float = (self.a * start.x()) + (self.b * start.y())
+
+    def get_start(self) -> Point: 
+        return self.start
+    
+    def get_end(self) -> Point: 
+        return self.end
+    
+    def set_start(self, start: Point): 
+        self.start = start 
+    
+    def set_end(self, end: Point): 
+        self.end = end 
 
     def get_direction(self) -> Point:
         return self.direction
@@ -331,6 +344,7 @@ class ComplexPolygon:
         # loop trough all edges and see if there is an intersection with the half plane
         for i, edge in enumerate(self.edges): 
             intersection: Point = edge.intersects(halfplane.line)
+            # we also ensure that we can not add the same end point twice (if it by coincidence goes trough a line endpoint)
             if intersection and edge.contains_with_tol(intersection) and not (intersection in intersections):
                 intersections_i.append(i)
                 intersections.append(intersection)

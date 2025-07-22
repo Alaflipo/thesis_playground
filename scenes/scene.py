@@ -5,7 +5,7 @@ import random
 import time
 
 from canvas import Canvas
-from utils.network import Network, Vertex, VoronoiDiagram
+from utils.network import Network, Vertex, VoronoiDiagram, VoronoiCell
 from utils.shapes import Point, Line, HalfPlane, ComplexPolygon
 import utils.colors as Colors
 from utils.geometry import half_plane_intersection
@@ -81,6 +81,27 @@ class VoronoiCellScene(Canvas):
             point.draw(painter)
         for half_plane in self.half_planes: 
             half_plane.draw(painter, self.view_box)
+
+class VoronoiCellScene2(Canvas): 
+    def __init__(self, size, draw_axis=True):
+        super().__init__(size, draw_axis)
+    
+    def set_up_scene(self):
+        self.middle_point: Vertex = Vertex(Point(60,30))
+        self.other_points: list[Vertex] = [
+            Vertex(Point(20,30)), Vertex(Point(40,60)), Vertex(Point(80,50)), Vertex(Point(90,20)), Vertex(Point(40,10))
+        ]
+        # self.other_points: list[Vertex] = [Vertex(Point(20,40))]
+        self.others: list[VoronoiCell] = [VoronoiCell(other) for other in self.other_points]
+        self.voronoi_cell: VoronoiCell = VoronoiCell(self.middle_point)
+        self.voronoi_cell.generate_cell(self.others)
+
+    def render_scene(self, painter):
+        self.voronoi_cell.draw(painter, color=Colors.GREY)
+        self.middle_point.draw(painter)
+        for point in self.other_points: 
+            point.draw(painter)
+
 
 class VoronoiDiagramScene(Canvas): 
 
