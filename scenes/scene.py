@@ -82,7 +82,7 @@ class VoronoiCellScene(Canvas):
         for half_plane in self.half_planes: 
             half_plane.draw(painter, self.view_box)
 
-class VoronoiCellScene2(Canvas): 
+class VoronoiCellSceneClass(Canvas): 
     def __init__(self, size, draw_axis=True):
         super().__init__(size, draw_axis)
     
@@ -109,7 +109,7 @@ class VoronoiDiagramScene(Canvas):
         super().__init__(size, draw_axis)
     
     def set_up_scene(self):
-        self.points: list[Point] = [Point(random.randint(-800, 800), random.randint(-800, 800)) for _ in range(100)]
+        self.points: list[Point] = [Point(random.randint(-800, 800), random.randint(-800, 800)) for _ in range(300)]
         self.voronoi_diagram = VoronoiDiagram(self.points)
         
     def render_scene(self, painter):

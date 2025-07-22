@@ -8,7 +8,6 @@ from utils.shapes import Point, Line, ComplexPolygon, HalfPlane
 from utils.geometry import half_plane_intersection
 import utils.colors as Colors
 
-
 class Vertex: 
 
     def __init__(self, point: Point, label: int = 0):
@@ -22,7 +21,6 @@ class Vertex:
         painter.setBrush(QBrush(Colors.MAROON))
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(self.point.x() - self.radius, self.point.y() - self.radius, 2 * self.radius, 2 * self.radius)
-
 
 class Edge: 
 
@@ -56,46 +54,24 @@ class Network:
         for vertex in self.vertices: 
             vertex.draw(painter)
         
-
 class VoronoiDiagram:
 
     def __init__(self, points: list[Point]):
         self.vertices = [Vertex(points[i], label=i) for i in range(len(points))]
-        self.create_voronoi_cells_2()
-    
+        self.voronoi_cells: list[VoronoiCell] = self.create_voronoi_cells()
+
     def create_voronoi_cells(self): 
-        self.voronoi_cells: list[ComplexPolygon] = []
-        # sorted_vertices = sorted(vertices, key=lambda vertex: vertex.point.angle())
-        for i, vertex in enumerate(self.vertices): 
-            others = self.vertices[:i] + self.vertices[i+1:]
-
-            bisectors = [vertex.point.bi_sector(other.point) for other in others]
-            half_planes = [HalfPlane(bisector, vertex.point - bisector.start) for bisector in bisectors]
-            voronoi_cell: ComplexPolygon = half_plane_intersection(half_planes)
-            self.voronoi_cells.append(voronoi_cell)
-
-    def create_voronoi_cells_2(self): 
-        self.vc = [VoronoiCell(vertex) for vertex in self.vertices]
-        for i, cell in enumerate(self.vc): 
-            others = self.vc[:i] + self.vc[i+1:]
+        voronoicells = [VoronoiCell(vertex) for vertex in self.vertices]
+        for i, cell in enumerate(voronoicells): 
+            others = voronoicells[:i] + voronoicells[i+1:]
             cell.generate_cell(others)
+        return voronoicells
 
-    def half_plane_intersection(self, half_planes: list[HalfPlane]) -> ComplexPolygon: 
-        area: ComplexPolygon = ComplexPolygon([Point(-1000, 1000), Point(1000,1000), Point(1000,-1000), Point(-1000, -1000)]) 
-
-        for i, half_plane in enumerate(half_planes): 
-            area = area.clip_with_halfplane(half_plane)
-        return area 
-    
     def draw(self, painter: QPainter): 
-        for voronoi_cell in self.vc: 
+        for voronoi_cell in self.voronoi_cells: 
             voronoi_cell.draw(painter, color=Colors.WHITE)
         for vertex in self.vertices: 
             vertex.point.draw(painter)
-        # for voronoi_cell in self.voronoi_cells: 
-        #     voronoi_cell.draw(painter, color=Colors.WHITE)
-        # for vertex in self.vertices: 
-        #     vertex.point.draw(painter)
 
 class VoronoiEdge:
 
@@ -133,9 +109,7 @@ class VoronoiCell:
         possible_edges = [VoronoiEdge(self, other) for other in others]
 
         for edge in possible_edges: 
-            
             self.clip_with_vornoi_edge(edge)
-            print(self.edges)
         
         self.hull = [edge.get_end() for edge in self.edges]
         self.QPolygon = QPolygonF([QPointF(point.x(), point.y()) for point in self.hull]) 

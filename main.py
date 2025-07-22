@@ -3,7 +3,7 @@ from PySide6.QtCore import QSize
 import sys 
 
 from canvas import Canvas
-from scenes.scene import BisectorScene, NetworkScene, ClipPolygonScene, VoronoiCellScene, VoronoiDiagramScene, VoronoiCellScene2
+import scenes.scene as Scene 
 
 class MainWindow(QMainWindow): 
 
@@ -15,7 +15,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Network playground")
         self.setMinimumSize(self.window_size)
 
-        self.canvas = VoronoiDiagramScene(self.window_size, draw_axis=True)
+        self.canvas = Scene.VoronoiDiagramScene(self.window_size, draw_axis=True)
         self.setCentralWidget(self.canvas)
         layout = QHBoxLayout(self.canvas)
         self.setLayout(layout)
